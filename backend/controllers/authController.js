@@ -1,49 +1,70 @@
-import User from "../models/User.js";
-import jwt from "jsonwebtoken";
+import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
 
-// ✅ REGISTER
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+};
+
+// REGISTER
 export const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body; // ✅ include name
+    console.log('Register body:', req.body); // helps debugging
+
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
 
     const exists = await User.findOne({ email });
     if (exists) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: 'User already exists' });
     }
 
-    // ❌ DO NOT hash here (mongoose already does it in User.js)
     const user = await User.create({ name, email, password });
+    const token = generateToken(user._id);
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    res.status(201).json({
+      token,
+      user: { id: user._id, name: user.name, email: user.email }
+    });
 
-    res.status(201).json({ token });
   } catch (err) {
-    console.log(err); // 👈 helps debugging
+    console.error('Register error:', err.message);
     res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ LOGIN
+// LOGIN
 export const login = async (req, res) => {
   try {
+    console.log('Login body:', req.body); // helps debugging
+
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // ✅ use schema method (cleaner)
     const match = await user.matchPassword(password);
     if (!match) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    const token = generateToken(user._id);
 
-    res.json({ token });
+    res.json({
+      token,
+      user: { id: user._id, name: user.name, email: user.email }
+    });
+
   } catch (err) {
-    console.log(err);
+    console.error('Login error:', err.message);
     res.status(500).json({ message: err.message });
   }
 };
