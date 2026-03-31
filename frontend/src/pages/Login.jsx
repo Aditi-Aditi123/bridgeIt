@@ -1,90 +1,71 @@
-import '../App.css';   // ← ADD THIS LINE AT THE TOP
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
-export default function Login() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPwd, setShowPwd] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/login', form);
-      login(data);
+      const res = await api.post('/auth/login', { email, password });
+      login(res.data.user, res.data.token);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="logo-row">
-          <div className="logo-icon">Bi</div>
-          <span className="logo-text">bridge<span className="accent">it</span></span>
-        </div>
+        <div className="auth-logo">bridge<em>It</em></div>
+        <h2 className="auth-title">Welcome back</h2>
+        <p className="auth-subtitle">Sign in to your personal transfer hub</p>
 
-        <h1>Welcome back</h1>
-        <p className="sub">Sign in to your personal transfer hub</p>
+        {error && <div className="auth-error">⚠ {error}</div>}
 
-        <div className="tabs">
-          <span className="tab active">Sign In</span>
-          <Link to="/signup" className="tab">Create Account</Link>
-        </div>
-
-        {error && <div className="error-banner">⚠️ {error}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <div className="field">
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="auth-field">
             <label>Email</label>
             <input
-              type="email" required placeholder="you@example.com"
-              value={form.email}
-              onChange={e => setForm({ ...form, email: e.target.value })}
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
             />
           </div>
-
-          <div className="field">
+          <div className="auth-field">
             <label>Password</label>
-            <div className="pwd-wrap">
-              <input
-                type={showPwd ? 'text' : 'password'} required placeholder="••••••••"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-              />
-              <button type="button" className="eye-btn" onClick={() => setShowPwd(!showPwd)}>
-                {showPwd ? '🙈' : '👁️'}
-              </button>
-            </div>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
           </div>
-
-          <div className="row">
-            <label className="remember">
-              <input type="checkbox" /> Remember me
-            </label>
-            <a href="#" className="forgot">Forgot password?</a>
-          </div>
-
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign In →'}
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In →'}
           </button>
         </form>
 
-        <p className="footer-note">
+        <p className="auth-switch">
           Don't have an account? <Link to="/signup">Create one</Link>
         </p>
       </div>
     </div>
   );
-}
+};
+
+export default Login;
