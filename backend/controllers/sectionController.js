@@ -1,11 +1,11 @@
 import Section from '../models/Section.js';
+import Message from '../models/Message.js';
 
-// Get all sections for logged in user
 export const getSections = async (req, res) => {
   try {
-    let sections = await Section.find({ user: req.user._id }).sort({ createdAt: 1 });
+    let sections = await Section.find({ user: req.user._id })
+      .sort({ pinned: -1, createdAt: 1 });
 
-    // Auto-create General section if user has none
     if (sections.length === 0) {
       const general = await Section.create({
         name: 'General',
@@ -20,12 +20,10 @@ export const getSections = async (req, res) => {
   }
 };
 
-// Create a new section
 export const createSection = async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ message: 'Section name required' });
-
     const section = await Section.create({ name, user: req.user._id });
     res.status(201).json(section);
   } catch (err) {
@@ -33,11 +31,23 @@ export const createSection = async (req, res) => {
   }
 };
 
-// Delete a section
 export const deleteSection = async (req, res) => {
   try {
+    await Message.deleteMany({ section: req.params.id });
     await Section.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Section deleted' });
+    res.json({ message: 'Section and all its messages deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const pinSection = async (req, res) => {
+  try {
+    const section = await Section.findById(req.params.id);
+    if (!section) return res.status(404).json({ message: 'Section not found' });
+    section.pinned = !section.pinned;
+    await section.save();
+    res.json(section);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

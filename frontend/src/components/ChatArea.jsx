@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
 
-const ChatArea = ({ section }) => {
+const ChatArea = ({ section, settings }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [listening, setListening] = useState(false);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     if (section) fetchMessages();
@@ -15,6 +18,14 @@ const ChatArea = ({ section }) => {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  }, [text]);
 
   const fetchMessages = async () => {
     try {
@@ -51,7 +62,7 @@ const ChatArea = ({ section }) => {
       );
       setMessages(prev => [...prev, res.data]);
     } catch (err) {
-      alert('Upload failed');
+      alert('Upload failed — video must be under 100MB');
     }
     setUploading(false);
   };
@@ -62,16 +73,60 @@ const ChatArea = ({ section }) => {
     e.target.value = '';
   };
 
+  const handleDeleteMessage = async (msgId) => {
+    if (!window.confirm('Delete this message?')) return;
+    try {
+      await api.delete(`/messages/${msgId}`);
+      setMessages(prev => prev.filter(m => m._id !== msgId));
+    } catch (err) {
+      alert('Could not delete message');
+    }
+  };
+
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Voice input not supported. Please use Chrome!');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onresult = (e) => {
+      const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+      setText(transcript);
+    };
+    recognition.onerror = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  };
+
   const getFileIcon = (type) => {
     if (type === 'pdf') return '📄';
     if (type === 'image') return '🖼️';
     if (type === 'audio') return '🎵';
+    if (type === 'video') return '🎬';
     return '📎';
   };
 
   const formatTime = (dateStr) => {
     return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  // Font size map
+  const fontSizeMap = { small: '12px', medium: '14px', large: '16px' };
+  const fontSize = fontSizeMap[settings?.fontSize] || '14px';
+  const fontFamily = settings?.fontFamily || "'Segoe UI', sans-serif";
+  const bubbleColor = settings?.bubbleColor || 'var(--bubble)';
+  const chatBg = settings?.chatBg || 'var(--bg)';
 
   if (!section) return (
     <div className="chat-empty">
@@ -82,7 +137,7 @@ const ChatArea = ({ section }) => {
   );
 
   return (
-    <div className="chat-area">
+    <div className="chat-area" style={{ fontFamily, background: chatBg }}>
       <div className="chat-topbar">
         <div className="chat-topbar-avatar">
           {section.name.slice(0, 2).toUpperCase()}
@@ -100,36 +155,43 @@ const ChatArea = ({ section }) => {
         {messages.map(msg => (
           <div key={msg._id} className="message-item">
             {msg.type === 'text' ? (
-              <div className="msg-bubble">{msg.content}</div>
+              <div className="msg-bubble" style={{ background: bubbleColor, fontSize }}>
+                <span>{msg.content}</span>
+                <button className="msg-delete-btn" onClick={() => handleDeleteMessage(msg._id)} title="Delete">✕</button>
+              </div>
+            ) : msg.type === 'image' ? (
+              <div className="image-card">
+                <img src={msg.content} alt={msg.fileName} className="msg-image" />
+                <div className="image-card-footer">
+                  <span className="file-size" style={{ fontSize }}>{msg.fileSize}</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <a href={msg.content} download={msg.fileName} target="_blank" rel="noreferrer" className="download-btn">↓</a>
+                    <button className="msg-delete-btn-card" onClick={() => handleDeleteMessage(msg._id)}>✕</button>
+                  </div>
+                </div>
+              </div>
+            ) : msg.type === 'video' ? (
+              <div className="video-card">
+                <video controls className="msg-video">
+                  <source src={msg.content} />
+                </video>
+                <div className="image-card-footer">
+                  <span className="file-name" style={{ fontSize }}>{msg.fileName}</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <a href={msg.content} download={msg.fileName} target="_blank" rel="noreferrer" className="download-btn">↓</a>
+                    <button className="msg-delete-btn-card" onClick={() => handleDeleteMessage(msg._id)}>✕</button>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <div className="file-card">
+              <div className="file-card" style={{ background: bubbleColor }}>
                 <span className="file-icon">{getFileIcon(msg.type)}</span>
                 <div className="file-info">
-                  <span className="file-name">{msg.fileName}</span>
+                  <span className="file-name" style={{ fontSize }}>{msg.fileName}</span>
                   <span className="file-size">{msg.fileSize}</span>
                 </div>
-                {msg.type === 'pdf' || msg.type === 'audio' ? (
-                  <a
-                    href={msg.content}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="download-btn"
-                    title="Download"
-                  >
-                    ↓
-                  </a>
-                ) : (
-                  <a
-                    href={msg.content}
-                    download={msg.fileName}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="download-btn"
-                    title="Download"
-                  >
-                    ↓
-                  </a>
-                )}
+                <a href={msg.content} target="_blank" rel="noreferrer" className="download-btn">↓</a>
+                <button className="msg-delete-btn-card" onClick={() => handleDeleteMessage(msg._id)}>✕</button>
               </div>
             )}
             <span className="msg-time">{formatTime(msg.createdAt)}</span>
@@ -152,15 +214,30 @@ const ChatArea = ({ section }) => {
           ref={fileInputRef}
           onChange={handleFileChange}
           style={{ display: 'none' }}
-          accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
+          accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt,.zip"
         />
-        <input
+        <textarea
+          ref={textareaRef}
           className="text-input"
-          placeholder="Type a message..."
+          placeholder={listening ? '🎤 Listening...' : 'Type a message...'}
           value={text}
+          rows={1}
           onChange={e => setText(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && sendText()}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendText();
+            }
+          }}
+          style={{ fontSize, fontFamily, resize: 'none', overflow: 'hidden' }}
         />
+        <button
+          className={`voice-btn ${listening ? 'listening' : ''}`}
+          onClick={listening ? stopListening : startListening}
+          title="Voice to text"
+        >
+          🎤
+        </button>
         <button className="send-btn" onClick={sendText}>➤</button>
       </div>
     </div>

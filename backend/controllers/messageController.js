@@ -2,7 +2,6 @@ import Message from '../models/Message.js';
 import cloudinary from '../config/cloudinary.js';
 import fs from 'fs';
 
-// Get all messages in a section
 export const getMessages = async (req, res) => {
   try {
     const messages = await Message.find({ section: req.params.sectionId })
@@ -13,7 +12,6 @@ export const getMessages = async (req, res) => {
   }
 };
 
-// Send a text message
 export const sendTextMessage = async (req, res) => {
   try {
     const { content, sectionId } = req.body;
@@ -31,7 +29,6 @@ export const sendTextMessage = async (req, res) => {
   }
 };
 
-// Upload a file
 export const uploadFile = async (req, res) => {
   try {
     console.log('File:', req.file);
@@ -47,28 +44,33 @@ export const uploadFile = async (req, res) => {
     if (mime.startsWith('image/')) type = 'image';
     else if (mime === 'application/pdf') type = 'pdf';
     else if (mime.startsWith('audio/')) type = 'audio';
+    else if (mime.startsWith('video/')) type = 'video';
 
     const bytes = req.file.size;
     const fileSize = bytes < 1024 * 1024
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
-    // Images go to Cloudinary, everything else stored locally
     let fileUrl = '';
     let publicId = '';
 
     if (mime.startsWith('image/')) {
-      // Upload image to Cloudinary
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: 'bridgeit',
         resource_type: 'image'
       });
       fileUrl = result.secure_url;
       publicId = result.public_id;
-      // Delete local temp file
+      fs.unlinkSync(req.file.path);
+    } else if (mime.startsWith('video/')) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'bridgeit',
+        resource_type: 'video'
+      });
+      fileUrl = result.secure_url;
+      publicId = result.public_id;
       fs.unlinkSync(req.file.path);
     } else {
-      // PDFs, audio, other files — serve locally
       fileUrl = `http://localhost:5000/uploads/${req.file.filename}`;
       publicId = req.file.filename;
     }
@@ -90,18 +92,16 @@ export const uploadFile = async (req, res) => {
   }
 };
 
-// Delete a message
 export const deleteMessage = async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);
     if (!message) return res.status(404).json({ message: 'Message not found' });
 
     if (message.publicId) {
-      // Try Cloudinary delete for images
       try {
-        await cloudinary.uploader.destroy(message.publicId);
+        const resourceType = message.type === 'video' ? 'video' : 'image';
+        await cloudinary.uploader.destroy(message.publicId, { resource_type: resourceType });
       } catch (e) {
-        // If not on Cloudinary, delete local file
         const localPath = `uploads/${message.publicId}`;
         if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
       }
