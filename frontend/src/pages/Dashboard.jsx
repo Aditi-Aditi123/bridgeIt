@@ -15,7 +15,9 @@ const defaultSettings = {
   fontSize: 'medium',
   fontFamily: "'Segoe UI', sans-serif",
   bubbleColor: '',
-  chatBg: ''
+  chatBg: '',
+  sidebarBg: '',
+  inputbarBg: '',
 };
 
 const Dashboard = () => {
@@ -44,14 +46,21 @@ const Dashboard = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Apply sidebar and inputbar colors as CSS variables on the root
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.sidebarBg)  root.style.setProperty('--sidebar-bg',  settings.sidebarBg);
+    else                      root.style.removeProperty('--sidebar-bg');
+    if (settings.inputbarBg) root.style.setProperty('--inputbar-bg', settings.inputbarBg);
+    else                      root.style.removeProperty('--inputbar-bg');
+  }, [settings.sidebarBg, settings.inputbarBg]);
+
   const fetchSections = async () => {
     try {
       const res = await api.get('/sections');
       setSections(res.data);
       if (res.data.length > 0) setActiveSection(res.data[0]);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleDragStart = useCallback((e) => {
@@ -83,27 +92,12 @@ const Dashboard = () => {
   }, []);
 
   const handleLogout = () => { logout(); navigate('/login'); };
-
-  const handleSelectSection = (sec) => {
-    setActiveSection(sec);
-    setShowSidebar(false);
-  };
-
-  const handleSectionCreated = (sec) => {
-    setSections(prev => [...prev, sec]);
-    setActiveSection(sec);
-    setShowSidebar(false);
-  };
-
-  const handleSectionDeleted = (id) => {
-    setSections(prev => prev.filter(s => s._id !== id));
-    if (activeSection?._id === id) setActiveSection(null);
-  };
-
+  const handleSelectSection = (sec) => { setActiveSection(sec); setShowSidebar(false); };
+  const handleSectionCreated = (sec) => { setSections(prev => [...prev, sec]); setActiveSection(sec); setShowSidebar(false); };
+  const handleSectionDeleted = (id) => { setSections(prev => prev.filter(s => s._id !== id)); if (activeSection?._id === id) setActiveSection(null); };
   const handleSectionPinned = (updatedSection) => {
     setSections(prev => {
       const updated = prev.map(s => s._id === updatedSection._id ? updatedSection : s);
-      // Sort: pinned first, then by createdAt
       return updated.sort((a, b) => {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
@@ -111,7 +105,6 @@ const Dashboard = () => {
       });
     });
   };
-
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   return (
@@ -124,7 +117,12 @@ const Dashboard = () => {
       <div className="dashboard-body">
         <div
           className={`sidebar-wrapper ${showSidebar ? 'show' : 'hide'}`}
-          style={{ width: `${sidebarWidth}px`, minWidth: `${sidebarWidth}px` }}
+          style={{
+            width: `${sidebarWidth}px`,
+            minWidth: `${MIN_SIDEBAR}px`,
+            maxWidth: `${MAX_SIDEBAR}px`,
+            /* NO overflow:hidden here — it was clipping the drag handle */
+          }}
         >
           <Sidebar
             sections={sections}
