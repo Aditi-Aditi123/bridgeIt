@@ -25,7 +25,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [sections, setSections] = useState([]);
   const [activeSection, setActiveSection] = useState(null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(true); // true = show sidebar on mobile
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR);
   const [showSettings, setShowSettings] = useState(false);
@@ -46,7 +46,6 @@ const Dashboard = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Apply sidebar and inputbar colors as CSS variables on the root
   useEffect(() => {
     const root = document.documentElement;
     if (settings.sidebarBg)  root.style.setProperty('--sidebar-bg',  settings.sidebarBg);
@@ -92,9 +91,24 @@ const Dashboard = () => {
   }, []);
 
   const handleLogout = () => { logout(); navigate('/login'); };
-  const handleSelectSection = (sec) => { setActiveSection(sec); setShowSidebar(false); };
-  const handleSectionCreated = (sec) => { setSections(prev => [...prev, sec]); setActiveSection(sec); setShowSidebar(false); };
-  const handleSectionDeleted = (id) => { setSections(prev => prev.filter(s => s._id !== id)); if (activeSection?._id === id) setActiveSection(null); };
+
+  // On mobile: selecting a section hides sidebar and shows chat
+  const handleSelectSection = (sec) => {
+    setActiveSection(sec);
+    setShowSidebar(false); // go to chat view on mobile
+  };
+
+  const handleSectionCreated = (sec) => {
+    setSections(prev => [...prev, sec]);
+    setActiveSection(sec);
+    setShowSidebar(false);
+  };
+
+  const handleSectionDeleted = (id) => {
+    setSections(prev => prev.filter(s => s._id !== id));
+    if (activeSection?._id === id) setActiveSection(null);
+  };
+
   const handleSectionPinned = (updatedSection) => {
     setSections(prev => {
       const updated = prev.map(s => s._id === updatedSection._id ? updatedSection : s);
@@ -105,23 +119,28 @@ const Dashboard = () => {
       });
     });
   };
+
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   return (
     <div className="dashboard">
-      <div className="mobile-topbar">
-        <button className="mobile-back-btn" onClick={() => setShowSidebar(true)}>☰</button>
-        <span className="mobile-logo">bridge<em>It</em></span>
-      </div>
+
+      {/* Mobile top bar — only shows when in CHAT view (sidebar hidden) */}
+      {!showSidebar && (
+        <div className="mobile-topbar">
+          <button className="mobile-back-btn" onClick={() => setShowSidebar(true)}>☰</button>
+          <span className="mobile-logo">bridge<em>It</em></span>
+        </div>
+      )}
 
       <div className="dashboard-body">
+        {/* Sidebar — visible on desktop always, on mobile only when showSidebar=true */}
         <div
           className={`sidebar-wrapper ${showSidebar ? 'show' : 'hide'}`}
           style={{
             width: `${sidebarWidth}px`,
             minWidth: `${MIN_SIDEBAR}px`,
             maxWidth: `${MAX_SIDEBAR}px`,
-            /* NO overflow:hidden here — it was clipping the drag handle */
           }}
         >
           <Sidebar
@@ -140,6 +159,7 @@ const Dashboard = () => {
           <div className="sidebar-drag-handle" onMouseDown={handleDragStart} title="Drag to resize" />
         </div>
 
+        {/* Chat — visible on desktop always, on mobile only when showSidebar=false */}
         <div className={`chat-wrapper ${!showSidebar ? 'show' : 'hide'}`}>
           <ChatArea section={activeSection} settings={settings} />
         </div>
