@@ -62,6 +62,7 @@ export const uploadFile = async (req, res) => {
       fileUrl = result.secure_url;
       publicId = result.public_id;
       fs.unlinkSync(req.file.path);
+
     } else if (mime.startsWith('video/')) {
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: 'bridgeit',
@@ -70,9 +71,18 @@ export const uploadFile = async (req, res) => {
       fileUrl = result.secure_url;
       publicId = result.public_id;
       fs.unlinkSync(req.file.path);
+
     } else {
-      fileUrl = `http://localhost:5000/uploads/${req.file.filename}`;
-      publicId = req.file.filename;
+      // PDFs and Audio — upload to Cloudinary as raw
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'bridgeit',
+        resource_type: 'raw',
+        use_filename: true,
+        unique_filename: true
+      });
+      fileUrl = result.secure_url;
+      publicId = result.public_id;
+      fs.unlinkSync(req.file.path);
     }
 
     const message = await Message.create({
@@ -99,11 +109,14 @@ export const deleteMessage = async (req, res) => {
 
     if (message.publicId) {
       try {
-        const resourceType = message.type === 'video' ? 'video' : 'image';
+        const resourceType = message.type === 'video'
+          ? 'video'
+          : message.type === 'pdf' || message.type === 'audio'
+            ? 'raw'
+            : 'image';
         await cloudinary.uploader.destroy(message.publicId, { resource_type: resourceType });
       } catch (e) {
-        const localPath = `uploads/${message.publicId}`;
-        if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+        console.error('Cloudinary delete error:', e.message);
       }
     }
 
