@@ -19,7 +19,6 @@ const ChatArea = ({ section, settings }) => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -62,7 +61,8 @@ const ChatArea = ({ section, settings }) => {
       );
       setMessages(prev => [...prev, res.data]);
     } catch (err) {
-      alert('Upload failed — video must be under 100MB');
+      const msg = err.response?.data?.message || 'Upload failed';
+      alert(msg);
     }
     setUploading(false);
   };
@@ -80,6 +80,23 @@ const ChatArea = ({ section, settings }) => {
       setMessages(prev => prev.filter(m => m._id !== msgId));
     } catch (err) {
       alert('Could not delete message');
+    }
+  };
+
+  const handleDownload = async (url, fileName) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(url, '_blank');
     }
   };
 
@@ -121,7 +138,6 @@ const ChatArea = ({ section, settings }) => {
     return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Font size map
   const fontSizeMap = { small: '12px', medium: '14px', large: '16px' };
   const fontSize = fontSizeMap[settings?.fontSize] || '14px';
   const fontFamily = settings?.fontFamily || "'Segoe UI', sans-serif";
@@ -159,17 +175,30 @@ const ChatArea = ({ section, settings }) => {
                 <span>{msg.content}</span>
                 <button className="msg-delete-btn" onClick={() => handleDeleteMessage(msg._id)} title="Delete">✕</button>
               </div>
+
             ) : msg.type === 'image' ? (
               <div className="image-card">
                 <img src={msg.content} alt={msg.fileName} className="msg-image" />
                 <div className="image-card-footer">
                   <span className="file-size" style={{ fontSize }}>{msg.fileSize}</span>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    <a href={msg.content} download={msg.fileName} target="_blank" rel="noreferrer" className="download-btn">↓</a>
+                    <a
+                      href={msg.content}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="download-btn"
+                      title="View"
+                    >👁️</a>
+                    <button
+                      className="download-btn"
+                      onClick={() => handleDownload(msg.content, msg.fileName)}
+                      title="Download"
+                    >↓</button>
                     <button className="msg-delete-btn-card" onClick={() => handleDeleteMessage(msg._id)}>✕</button>
                   </div>
                 </div>
               </div>
+
             ) : msg.type === 'video' ? (
               <div className="video-card">
                 <video controls className="msg-video">
@@ -178,11 +207,23 @@ const ChatArea = ({ section, settings }) => {
                 <div className="image-card-footer">
                   <span className="file-name" style={{ fontSize }}>{msg.fileName}</span>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    <a href={msg.content} download={msg.fileName} target="_blank" rel="noreferrer" className="download-btn">↓</a>
+                    <a
+                      href={msg.content}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="download-btn"
+                      title="View"
+                    >👁️</a>
+                    <button
+                      className="download-btn"
+                      onClick={() => handleDownload(msg.content, msg.fileName)}
+                      title="Download"
+                    >↓</button>
                     <button className="msg-delete-btn-card" onClick={() => handleDeleteMessage(msg._id)}>✕</button>
                   </div>
                 </div>
               </div>
+
             ) : (
               <div className="file-card" style={{ background: bubbleColor }}>
                 <span className="file-icon">{getFileIcon(msg.type)}</span>
@@ -190,7 +231,23 @@ const ChatArea = ({ section, settings }) => {
                   <span className="file-name" style={{ fontSize }}>{msg.fileName}</span>
                   <span className="file-size">{msg.fileSize}</span>
                 </div>
-                <a href={msg.content} target="_blank" rel="noreferrer" className="download-btn">↓</a>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    className="download-btn"
+                    title="View"
+                    onClick={() => {
+                      const url = msg.type === 'pdf'
+                        ? `https://docs.google.com/viewer?url=${encodeURIComponent(msg.content)}`
+                        : msg.content;
+                      window.open(url, '_blank');
+                    }}
+                  >👁️</button>
+                  <button
+                    className="download-btn"
+                    onClick={() => handleDownload(msg.content, msg.fileName)}
+                    title="Download"
+                    >↓</button>
+                </div>
                 <button className="msg-delete-btn-card" onClick={() => handleDeleteMessage(msg._id)}>✕</button>
               </div>
             )}

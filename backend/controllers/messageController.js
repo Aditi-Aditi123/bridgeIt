@@ -1,6 +1,16 @@
 import Message from '../models/Message.js';
 import cloudinary from '../config/cloudinary.js';
-import fs from 'fs';
+import streamifier from 'streamifier';
+
+const uploadToCloudinary = (buffer, options) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+    streamifier.createReadStream(buffer).pipe(stream);
+  });
+};
 
 export const getMessages = async (req, res) => {
   try {
@@ -31,9 +41,6 @@ export const sendTextMessage = async (req, res) => {
 
 export const uploadFile = async (req, res) => {
   try {
-    console.log('File:', req.file);
-    console.log('Body:', req.body);
-
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
     const sectionId = req.body.sectionId || req.query.sectionId;
@@ -51,48 +58,25 @@ export const uploadFile = async (req, res) => {
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
-    let fileUrl = '';
-    let publicId = '';
+    let resourceType = 'raw';
+    if (mime.startsWith('image/')) resourceType = 'image';
+    else if (mime.startsWith('video/')) resourceType = 'video';
 
-    if (mime.startsWith('image/')) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'bridgeit',
-        resource_type: 'image'
-      });
-      fileUrl = result.secure_url;
-      publicId = result.public_id;
-      fs.unlinkSync(req.file.path);
-
-    } else if (mime.startsWith('video/')) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'bridgeit',
-        resource_type: 'video'
-      });
-      fileUrl = result.secure_url;
-      publicId = result.public_id;
-      fs.unlinkSync(req.file.path);
-
-    } else {
-      // PDFs and Audio — upload to Cloudinary as raw
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'bridgeit',
-        resource_type: 'raw',
-        use_filename: true,
-        unique_filename: true
-      });
-      fileUrl = result.secure_url;
-      publicId = result.public_id;
-      fs.unlinkSync(req.file.path);
-    }
+    const result = await uploadToCloudinary(req.file.buffer, {
+      folder: 'bridgeit',
+      resource_type: resourceType,
+      use_filename: true,
+      unique_filename: true
+    });
 
     const message = await Message.create({
       section: sectionId,
       user: req.user._id,
       type,
-      content: fileUrl,
+      content: result.secure_url,
       fileName: req.file.originalname,
       fileSize,
-      publicId
+      publicId: result.public_id
     });
 
     res.status(201).json(message);
