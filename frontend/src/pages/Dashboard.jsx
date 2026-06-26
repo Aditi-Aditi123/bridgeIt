@@ -25,10 +25,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [sections, setSections] = useState([]);
   const [activeSection, setActiveSection] = useState(null);
-  const [showSidebar, setShowSidebar] = useState(true); // true = show sidebar on mobile
+  const [showSidebar, setShowSidebar] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAddInput, setShowAddInput] = useState(false);
   const [settings, setSettings] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('bridgeit-settings')) || defaultSettings;
@@ -92,16 +93,16 @@ const Dashboard = () => {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  // On mobile: selecting a section hides sidebar and shows chat
   const handleSelectSection = (sec) => {
     setActiveSection(sec);
-    setShowSidebar(false); // go to chat view on mobile
+    setShowSidebar(false);
   };
 
   const handleSectionCreated = (sec) => {
     setSections(prev => [...prev, sec]);
     setActiveSection(sec);
     setShowSidebar(false);
+    setShowAddInput(false);
   };
 
   const handleSectionDeleted = (id) => {
@@ -125,16 +126,21 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
 
-      {/* Mobile top bar — only shows when in CHAT view (sidebar hidden) */}
-      {!showSidebar && (
-        <div className="mobile-topbar">
-          <button className="mobile-back-btn" onClick={() => setShowSidebar(true)}>☰</button>
-          <span className="mobile-logo">bridge<em>It</em></span>
-        </div>
-      )}
+      {/* Mobile top bar — ALWAYS visible on mobile */}
+      <div className="mobile-topbar">
+        <button
+          className="mobile-back-btn"
+          onClick={() => setShowSidebar(prev => !prev)}
+        >☰</button>
+        <span className="mobile-logo">bridge<em>It</em></span>
+        <button
+          className="mobile-add-btn"
+          onClick={() => { setShowSidebar(true); setShowAddInput(true); }}
+          title="Add section"
+        >+</button>
+      </div>
 
       <div className="dashboard-body">
-        {/* Sidebar — visible on desktop always, on mobile only when showSidebar=true */}
         <div
           className={`sidebar-wrapper ${showSidebar ? 'show' : 'hide'}`}
           style={{
@@ -155,11 +161,12 @@ const Dashboard = () => {
             theme={theme}
             onToggleTheme={toggleTheme}
             onOpenSettings={() => setShowSettings(true)}
+            mobileShowAddInput={showAddInput}
+            onMobileAddInputDone={() => setShowAddInput(false)}
           />
           <div className="sidebar-drag-handle" onMouseDown={handleDragStart} title="Drag to resize" />
         </div>
 
-        {/* Chat — visible on desktop always, on mobile only when showSidebar=false */}
         <div className={`chat-wrapper ${!showSidebar ? 'show' : 'hide'}`}>
           <ChatArea section={activeSection} settings={settings} />
         </div>
