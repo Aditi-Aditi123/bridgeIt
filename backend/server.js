@@ -17,14 +17,21 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? 'https://bridgeit.onrender.com'
-    : ['http://localhost:3000', 'http://localhost:5173'],
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://bridgeit-vpi7.onrender.com',
+    'https://bridgeit.onrender.com',
+    'https://bridgeit-frontend.onrender.com'
+  ],
   credentials: true
 }));
 
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/sections', sectionRoutes);
@@ -33,7 +40,6 @@ app.use('/api/messages', messageRoutes);
 // Serve React frontend in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
-
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
   });
