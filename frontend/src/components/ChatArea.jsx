@@ -172,7 +172,7 @@ const ChatArea = ({ section, settings }) => {
         </div>
         <div>
           <div className="chat-topbar-name">{section.name}</div>
-          <div className="chat-topbar-hint">Updates every 3 seconds</div>
+          <div className="chat-topbar-hint">Your section</div>
         </div>
       </div>
 

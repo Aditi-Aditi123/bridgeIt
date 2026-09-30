@@ -536,3 +536,72 @@ body.light {
   .sidebar-wrapper.hide { display: flex !important; }
   .chat-wrapper.hide { display: flex !important; }
 }
+
+/* ── MOBILE DRAWER ── */
+.mobile-drawer {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 280px;
+  height: 100vh;
+  background: var(--sidebar-bg);
+  z-index: 500;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.4);
+  overflow-y: auto;
+}
+.mobile-drawer.open {
+  transform: translateX(0);
+}
+
+/* Dark backdrop when drawer is open */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 499;
+}
+
+@media (max-width: 768px) {
+  /* Always show mobile topbar */
+  .mobile-topbar {
+    display: flex !important;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  /* Show drawer and overlay only on mobile */
+  .mobile-drawer { display: block; }
+  .mobile-overlay { display: block; }
+
+  /* Hide desktop sidebar on mobile */
+  .desktop-sidebar { display: none !important; }
+
+  /* Chat always fills screen on mobile */
+  .chat-wrapper {
+    display: flex !important;
+    flex: 1;
+    width: 100%;
+    height: calc(100vh - 48px);
+  }
+
+  /* Dashboard body takes full height minus topbar */
+  .dashboard-body {
+    height: calc(100vh - 48px);
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 769px) {
+  /* Hide mobile topbar and drawer on desktop */
+  .mobile-topbar { display: none !important; }
+  .mobile-drawer { display: none !important; }
+  .mobile-overlay { display: none !important; }
+
+  /* Show desktop sidebar */
+  .desktop-sidebar { display: flex !important; }
+  .chat-wrapper { display: flex !important; flex: 1; }
+}

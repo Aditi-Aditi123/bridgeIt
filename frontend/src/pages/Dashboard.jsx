@@ -25,7 +25,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [sections, setSections] = useState([]);
   const [activeSection, setActiveSection] = useState(null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR);
   const [showSettings, setShowSettings] = useState(false);
@@ -49,10 +49,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     const root = document.documentElement;
-    if (settings.sidebarBg)  root.style.setProperty('--sidebar-bg',  settings.sidebarBg);
-    else                      root.style.removeProperty('--sidebar-bg');
+    if (settings.sidebarBg) root.style.setProperty('--sidebar-bg', settings.sidebarBg);
+    else root.style.removeProperty('--sidebar-bg');
     if (settings.inputbarBg) root.style.setProperty('--inputbar-bg', settings.inputbarBg);
-    else                      root.style.removeProperty('--inputbar-bg');
+    else root.style.removeProperty('--inputbar-bg');
   }, [settings.sidebarBg, settings.inputbarBg]);
 
   const fetchSections = async () => {
@@ -95,13 +95,13 @@ const Dashboard = () => {
 
   const handleSelectSection = (sec) => {
     setActiveSection(sec);
-    setShowSidebar(false);
+    setMobileSidebarOpen(false); // close drawer on mobile
   };
 
   const handleSectionCreated = (sec) => {
     setSections(prev => [...prev, sec]);
     setActiveSection(sec);
-    setShowSidebar(false);
+    setMobileSidebarOpen(false);
     setShowAddInput(false);
   };
 
@@ -126,23 +126,37 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
 
-      {/* Mobile top bar — ALWAYS visible on mobile */}
+      {/* ── MOBILE TOPBAR — always visible on mobile ── */}
       <div className="mobile-topbar">
         <button
           className="mobile-back-btn"
-          onClick={() => setShowSidebar(prev => !prev)}
+          onClick={() => setMobileSidebarOpen(prev => !prev)}
+          title="Menu"
         >☰</button>
         <span className="mobile-logo">bridge<em>It</em></span>
         <button
           className="mobile-add-btn"
-          onClick={() => { setShowSidebar(true); setShowAddInput(true); }}
+          onClick={() => {
+            setMobileSidebarOpen(true);
+            setShowAddInput(true);
+          }}
           title="Add section"
         >+</button>
       </div>
 
       <div className="dashboard-body">
+
+        {/* ── MOBILE OVERLAY — dark backdrop when drawer is open ── */}
+        {mobileSidebarOpen && (
+          <div
+            className="mobile-overlay"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
+
+        {/* ── DESKTOP SIDEBAR — normal, always visible ── */}
         <div
-          className={`sidebar-wrapper ${showSidebar ? 'show' : 'hide'}`}
+          className="sidebar-wrapper desktop-sidebar"
           style={{
             width: `${sidebarWidth}px`,
             minWidth: `${MIN_SIDEBAR}px`,
@@ -167,7 +181,27 @@ const Dashboard = () => {
           <div className="sidebar-drag-handle" onMouseDown={handleDragStart} title="Drag to resize" />
         </div>
 
-        <div className={`chat-wrapper ${!showSidebar ? 'show' : 'hide'}`}>
+        {/* ── MOBILE DRAWER SIDEBAR — slides in from left ── */}
+        <div className={`mobile-drawer ${mobileSidebarOpen ? 'open' : ''}`}>
+          <Sidebar
+            sections={sections}
+            activeSection={activeSection}
+            onSelectSection={handleSelectSection}
+            onSectionCreated={handleSectionCreated}
+            onSectionDeleted={handleSectionDeleted}
+            onSectionPinned={handleSectionPinned}
+            onLogout={handleLogout}
+            user={user}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onOpenSettings={() => { setShowSettings(true); setMobileSidebarOpen(false); }}
+            mobileShowAddInput={showAddInput}
+            onMobileAddInputDone={() => setShowAddInput(false)}
+          />
+        </div>
+
+        {/* ── CHAT AREA — always visible on mobile ── */}
+        <div className="chat-wrapper">
           <ChatArea section={activeSection} settings={settings} />
         </div>
       </div>
