@@ -10,13 +10,25 @@ const ChatArea = ({ section, settings }) => {
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
   const textareaRef = useRef(null);
+  const isUserScrollingRef = useRef(false);
 
   useEffect(() => {
-    if (section) fetchMessages();
+    if (section) {
+      fetchMessages();
+
+      // Auto refresh every 3 seconds
+      const interval = setInterval(() => {
+        fetchMessages();
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }
   }, [section]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!isUserScrollingRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -160,7 +172,7 @@ const ChatArea = ({ section, settings }) => {
         </div>
         <div>
           <div className="chat-topbar-name">{section.name}</div>
-          <div className="chat-topbar-hint">Your personal section</div>
+          <div className="chat-topbar-hint">Updates every 3 seconds</div>
         </div>
       </div>
 
@@ -246,7 +258,7 @@ const ChatArea = ({ section, settings }) => {
                     className="download-btn"
                     onClick={() => handleDownload(msg.content, msg.fileName)}
                     title="Download"
-                    >↓</button>
+                  >↓</button>
                 </div>
                 <button className="msg-delete-btn-card" onClick={() => handleDeleteMessage(msg._id)}>✕</button>
               </div>
