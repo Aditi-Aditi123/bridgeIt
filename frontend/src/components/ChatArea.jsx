@@ -19,7 +19,7 @@ const ChatArea = ({ section, settings }) => {
       // Auto refresh every 3 seconds
       const interval = setInterval(() => {
         fetchMessages();
-      }, 3000);
+      }, 1000);
 
       return () => clearInterval(interval);
     }
